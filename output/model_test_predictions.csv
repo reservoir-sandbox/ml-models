@@ -1,0 +1,17 @@
+path,filename,expected_label,expected_class,predicted_label,predicted_class,suspicious_probability,correct,heuristic_score,evidence_strings,evidence_imports
+samples/clean/clean_fibonacci,clean_fibonacci,0,clean,0,clean,0.005,1,0.0,,
+samples/clean/clean_hello,clean_hello,0,clean,0,clean,0.02,1,0.0,,
+samples/clean/clean_math,clean_math,0,clean,0,clean,0.005,1,0.0,,
+samples/clean/clean_prime_checker,clean_prime_checker,0,clean,0,clean,0.0,1,0.0,,
+samples/clean/clean_sort_numbers,clean_sort_numbers,0,clean,0,clean,0.0,1,0.0,,
+samples/clean/clean_string_counter,clean_string_counter,0,clean,0,clean,0.005,1,0.0,,
+samples/clean/clean_table,clean_table,0,clean,0,clean,0.02,1,0.0,,
+samples/clean/clean_temperature,clean_temperature,0,clean,0,clean,0.0,1,0.0,,
+samples/suspicious/fake_antidebug_strings,fake_antidebug_strings,1,suspicious,1,suspicious,0.945,1,0.04,proc,"dlopen,dlsym"
+samples/suspicious/fake_combo,fake_combo,1,suspicious,1,suspicious,0.95,1,0.355,"base64,bin_bash,bin_sh,busybox,chmod,chown,cron,curl,dev_shm,etc_passwd,etc_shadow,http,https,iptables,ld_preload,netcat,proc,telnet,tmp_path,wget","connect,getaddrinfo,mmap,mprotect,socket,system"
+samples/suspicious/fake_downloader,fake_downloader,1,suspicious,1,suspicious,0.925,1,0.2,"bin_bash,bin_sh,chmod,curl,etc_passwd,http,https,tmp_path,wget",
+samples/suspicious/fake_fork,fake_fork,1,suspicious,1,suspicious,0.94,1,0.07,,fork
+samples/suspicious/fake_memory_behavior,fake_memory_behavior,1,suspicious,1,suspicious,0.94,1,0.0,,"mmap,mprotect,munmap"
+samples/suspicious/fake_network_client,fake_network_client,1,suspicious,1,suspicious,0.955,1,0.08,,"connect,socket"
+samples/suspicious/fake_persistence_strings,fake_persistence_strings,1,suspicious,1,suspicious,0.89,1,0.2,"cron,dev_shm,iptables,ld_preload,tmp_path",
+samples/suspicious/fake_process_behavior,fake_process_behavior,1,suspicious,1,suspicious,0.965,1,0.145,bin_sh,"execve,popen,system"

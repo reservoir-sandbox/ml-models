@@ -1,0 +1,14 @@
+{
+  "total": 16,
+  "correct": 16,
+  "accuracy": 1.0,
+  "clean_total": 8,
+  "suspicious_total": 8,
+  "confusion": {
+    "clean_as_clean": 8,
+    "clean_as_suspicious": 0,
+    "suspicious_as_clean": 0,
+    "suspicious_as_suspicious": 8
+  },
+  "note": "Evaluation is on the tiny synthetic MVP sample set, not a real-world malware benchmark."
+}
