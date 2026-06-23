@@ -34,3 +34,9 @@ To predict one ELF file:
 ```bash
 bash scripts/predict_file_in_docker.sh samples/suspicious/fake_combo
 ```
+
+To generate a readable Markdown summary from a prediction:
+
+```bash
+bash scripts/summarize_prediction.sh output/fake_combo_prediction.json
+```
