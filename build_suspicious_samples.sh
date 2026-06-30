@@ -303,6 +303,161 @@ int main(void) {
 }
 EOF_C
 
+cat > "$OUT_DIR/fake_privilege_strings.c" <<'EOF_C'
+#include <stdio.h>
+#include <unistd.h>
+
+int main(void) {
+    const char *indicators[] = {
+        "setuid root helper",
+        "setgid daemon helper",
+        "chroot /tmp/.jail",
+        "/etc/shadow",
+        "/etc/passwd",
+        "privilege escalation check"
+    };
+
+    puts("Reservoir harmless privilege-string/import sample: fake_privilege_strings");
+    for (size_t i = 0; i < sizeof(indicators) / sizeof(indicators[0]); ++i) {
+        printf("privilege indicator string only: %s\n", indicators[i]);
+    }
+
+    int (*setuid_import)(uid_t) = setuid;
+    int (*setgid_import)(gid_t) = setgid;
+    int (*chroot_import)(const char *) = chroot;
+    printf("privilege imports present but not called: setuid=%p setgid=%p chroot=%p\n",
+           (void *)setuid_import, (void *)setgid_import, (void *)chroot_import);
+    return 0;
+}
+EOF_C
+
+cat > "$OUT_DIR/fake_filesystem_imports.c" <<'EOF_C'
+#include <fcntl.h>
+#include <stdio.h>
+#include <sys/stat.h>
+#include <unistd.h>
+
+int main(void) {
+    const char *indicators[] = {
+        "unlink /tmp/payload",
+        "rename /tmp/payload /tmp/.cache",
+        "chmod 755 /tmp/.cache",
+        "/dev/shm/drop",
+        "/proc/self/exe"
+    };
+
+    puts("Reservoir harmless filesystem-import sample: fake_filesystem_imports");
+    for (size_t i = 0; i < sizeof(indicators) / sizeof(indicators[0]); ++i) {
+        printf("filesystem indicator string only: %s\n", indicators[i]);
+    }
+
+    int (*open_import)(const char *, int, ...) = open;
+    int (*unlink_import)(const char *) = unlink;
+    int (*rename_import)(const char *, const char *) = rename;
+    int (*chmod_import)(const char *, mode_t) = chmod;
+    printf("filesystem imports present but not called: open=%p unlink=%p rename=%p chmod=%p\n",
+           (void *)open_import, (void *)unlink_import, (void *)rename_import, (void *)chmod_import);
+    return 0;
+}
+EOF_C
+
+cat > "$OUT_DIR/fake_dns_beacon_strings.c" <<'EOF_C'
+#include <netdb.h>
+#include <stdio.h>
+#include <sys/socket.h>
+
+int main(void) {
+    const char *indicators[] = {
+        "http://example.com/checkin",
+        "https://example.com/api",
+        "gethostbyname",
+        "dns beacon interval",
+        "curl -fsSL https://example.com/stage"
+    };
+
+    puts("Reservoir harmless DNS/beacon string sample: fake_dns_beacon_strings");
+    for (size_t i = 0; i < sizeof(indicators) / sizeof(indicators[0]); ++i) {
+        printf("network indicator string only: %s\n", indicators[i]);
+    }
+
+    int (*socket_import)(int, int, int) = socket;
+    int (*getaddrinfo_import)(const char *, const char *, const struct addrinfo *, struct addrinfo **) = getaddrinfo;
+    printf("network imports present but not called: socket=%p getaddrinfo=%p\n",
+           (void *)socket_import, (void *)getaddrinfo_import);
+    return 0;
+}
+EOF_C
+
+cat > "$OUT_DIR/fake_proc_scan_strings.c" <<'EOF_C'
+#include <stdio.h>
+
+int main(void) {
+    const char *indicators[] = {
+        "/proc/self/status",
+        "/proc/self/maps",
+        "/proc/net/tcp",
+        "TracerPid",
+        "ptrace anti-debug check",
+        "/tmp/.proc-cache"
+    };
+
+    puts("Reservoir harmless proc-string sample: fake_proc_scan_strings");
+    for (size_t i = 0; i < sizeof(indicators) / sizeof(indicators[0]); ++i) {
+        printf("proc indicator string only: %s\n", indicators[i]);
+    }
+    return 0;
+}
+EOF_C
+
+cat > "$OUT_DIR/fake_encoded_payload_strings.c" <<'EOF_C'
+#include <stdio.h>
+
+int main(void) {
+    const char *indicators[] = {
+        "base64 -d /tmp/blob",
+        "payload encoded with base64",
+        "busybox sh",
+        "/bin/sh",
+        "chmod +x /tmp/blob",
+        "wget http://example.com/blob"
+    };
+
+    puts("Reservoir harmless encoded-payload string sample: fake_encoded_payload_strings");
+    for (size_t i = 0; i < sizeof(indicators) / sizeof(indicators[0]); ++i) {
+        printf("encoded payload indicator string only: %s\n", indicators[i]);
+    }
+    return 0;
+}
+EOF_C
+
+cat > "$OUT_DIR/fake_loader_imports.c" <<'EOF_C'
+#include <dlfcn.h>
+#include <stdio.h>
+#include <sys/mman.h>
+
+int main(void) {
+    const char *indicators[] = {
+        "LD_PRELOAD",
+        "/etc/ld.so.preload",
+        "dlopen loader",
+        "dlsym resolver",
+        "mprotect executable page"
+    };
+
+    puts("Reservoir harmless loader-import sample: fake_loader_imports");
+    for (size_t i = 0; i < sizeof(indicators) / sizeof(indicators[0]); ++i) {
+        printf("loader indicator string only: %s\n", indicators[i]);
+    }
+
+    void *(*dlopen_import)(const char *, int) = dlopen;
+    void *(*dlsym_import)(void *, const char *) = dlsym;
+    int (*mprotect_import)(void *, size_t, int) = mprotect;
+    printf("loader imports present but not called: dlopen=%p dlsym=%p mprotect=%p\n",
+           (void *)dlopen_import, (void *)dlsym_import, (void *)mprotect_import);
+    return 0;
+}
+EOF_C
+
 build_one() {
   local name="$1"
   echo "Building $OUT_DIR/$name"
@@ -317,6 +472,12 @@ build_one fake_memory_behavior
 build_one fake_antidebug_strings
 build_one fake_persistence_strings
 build_one fake_combo
+build_one fake_privilege_strings
+build_one fake_filesystem_imports
+build_one fake_dns_beacon_strings
+build_one fake_proc_scan_strings
+build_one fake_encoded_payload_strings
+build_one fake_loader_imports
 
 if [[ "$KEEP_C_SOURCES" != "1" ]]; then
   rm -f "$OUT_DIR"/fake_downloader.c \
@@ -326,7 +487,13 @@ if [[ "$KEEP_C_SOURCES" != "1" ]]; then
         "$OUT_DIR"/fake_memory_behavior.c \
         "$OUT_DIR"/fake_antidebug_strings.c \
         "$OUT_DIR"/fake_persistence_strings.c \
-        "$OUT_DIR"/fake_combo.c
+        "$OUT_DIR"/fake_combo.c \
+        "$OUT_DIR"/fake_privilege_strings.c \
+        "$OUT_DIR"/fake_filesystem_imports.c \
+        "$OUT_DIR"/fake_dns_beacon_strings.c \
+        "$OUT_DIR"/fake_proc_scan_strings.c \
+        "$OUT_DIR"/fake_encoded_payload_strings.c \
+        "$OUT_DIR"/fake_loader_imports.c
 fi
 
 echo
@@ -338,7 +505,13 @@ file "$OUT_DIR"/fake_downloader \
      "$OUT_DIR"/fake_memory_behavior \
      "$OUT_DIR"/fake_antidebug_strings \
      "$OUT_DIR"/fake_persistence_strings \
-     "$OUT_DIR"/fake_combo
+     "$OUT_DIR"/fake_combo \
+     "$OUT_DIR"/fake_privilege_strings \
+     "$OUT_DIR"/fake_filesystem_imports \
+     "$OUT_DIR"/fake_dns_beacon_strings \
+     "$OUT_DIR"/fake_proc_scan_strings \
+     "$OUT_DIR"/fake_encoded_payload_strings \
+     "$OUT_DIR"/fake_loader_imports
 
 echo
 echo "Done. Harmless suspicious ELF samples are in $OUT_DIR"

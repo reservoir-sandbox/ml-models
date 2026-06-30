@@ -12,7 +12,7 @@ from typing import Any
 import joblib
 
 from Reservoir.file_analysis.feature_extractor_dataset import iter_candidate_files, parse_elf
-from Reservoir.file_analysis.predict_file import suspicious_evidence, to_float
+from Reservoir.file_analysis.predictor import suspicious_evidence, to_float
 
 
 def write_json(path: Path, payload: dict[str, Any]) -> None:

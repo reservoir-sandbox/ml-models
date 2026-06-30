@@ -3,7 +3,7 @@
 File: `fake_combo`
 SHA-256: `2ea78b1006757f67c0dc4a56ea393fc3ed8a39e2d5a327f5fadc842e4f172c92`
 Verdict: **SUSPICIOUS**
-Suspicious probability: **95.0%**
+Suspicious probability: **97.0%**
 Risk level: **High**
 
 ## Executive Summary

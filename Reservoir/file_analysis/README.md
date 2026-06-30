@@ -6,7 +6,7 @@ It currently supports:
 
 1. Static ELF feature extraction with `feature_extractor_dataset.py`.
 2. Dataset generation from `samples/clean` and `samples/suspicious`.
-3. Baseline model training with `train_baseline_model.py`.
+3. Model training with candidate model selection in `train_baseline_model.py`.
 4. Single-file prediction with `predict_file.py`.
 
 ## Build Everything In Docker
@@ -98,6 +98,17 @@ Outputs:
 ```text
 output/model_test_predictions.csv
 output/model_test_summary.json
+```
+
+## External Feature CSV
+
+If a safe labeled external feature CSV is available with the same schema, it can
+be merged during training:
+
+```bash
+python3 -m Reservoir.file_analysis.train_baseline_model \
+  --input-csv data/features.csv \
+  --extra-csv path/to/external_features.csv
 ```
 
 Important: the suspicious class is synthetic and harmless. This MVP proves the pipeline shape; it is not a real-world malware detector yet.

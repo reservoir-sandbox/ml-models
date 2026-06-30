@@ -167,6 +167,80 @@ int main(void) {
 }
 EOF_C
 
+cat > "$OUT_DIR/clean_word_stats.c" <<'EOF_C'
+#include <ctype.h>
+#include <stdio.h>
+#include <string.h>
+
+int main(void) {
+    const char *text = "static analysis can also process ordinary clean utilities";
+    int words = 0;
+    int in_word = 0;
+    for (size_t i = 0; i < strlen(text); ++i) {
+        if (isalpha((unsigned char)text[i])) {
+            if (!in_word) {
+                ++words;
+            }
+            in_word = 1;
+        } else {
+            in_word = 0;
+        }
+    }
+    printf("word count: %d\n", words);
+    return 0;
+}
+EOF_C
+
+cat > "$OUT_DIR/clean_checksum.c" <<'EOF_C'
+#include <stdint.h>
+#include <stdio.h>
+
+int main(void) {
+    const unsigned char data[] = {12, 44, 91, 2, 73, 19, 8, 5};
+    uint32_t checksum = 0;
+    for (size_t i = 0; i < sizeof(data); ++i) {
+        checksum = (checksum * 33U) ^ data[i];
+    }
+    printf("checksum=%u\n", checksum);
+    return 0;
+}
+EOF_C
+
+cat > "$OUT_DIR/clean_argument_echo.c" <<'EOF_C'
+#include <stdio.h>
+
+int main(int argc, char **argv) {
+    printf("argument count: %d\n", argc);
+    for (int i = 0; i < argc; ++i) {
+        printf("arg[%d]=%s\n", i, argv[i]);
+    }
+    return 0;
+}
+EOF_C
+
+cat > "$OUT_DIR/clean_state_machine.c" <<'EOF_C'
+#include <stdio.h>
+
+typedef enum {
+    STATE_START,
+    STATE_RUNNING,
+    STATE_DONE
+} state_t;
+
+int main(void) {
+    state_t state = STATE_START;
+    for (int step = 0; step < 3; ++step) {
+        if (state == STATE_START) {
+            state = STATE_RUNNING;
+        } else if (state == STATE_RUNNING) {
+            state = STATE_DONE;
+        }
+        printf("step=%d state=%d\n", step, state);
+    }
+    return 0;
+}
+EOF_C
+
 build_one() {
   local name="$1"
   echo "Building $OUT_DIR/$name"
@@ -181,6 +255,10 @@ build_one clean_fibonacci
 build_one clean_prime_checker
 build_one clean_table
 build_one clean_temperature
+build_one clean_word_stats
+build_one clean_checksum
+build_one clean_argument_echo
+build_one clean_state_machine
 
 if [[ "$KEEP_C_SOURCES" != "1" ]]; then
   rm -f "$OUT_DIR"/*.c
@@ -195,7 +273,11 @@ file "$OUT_DIR"/clean_hello \
      "$OUT_DIR"/clean_fibonacci \
      "$OUT_DIR"/clean_prime_checker \
      "$OUT_DIR"/clean_table \
-     "$OUT_DIR"/clean_temperature
+     "$OUT_DIR"/clean_temperature \
+     "$OUT_DIR"/clean_word_stats \
+     "$OUT_DIR"/clean_checksum \
+     "$OUT_DIR"/clean_argument_echo \
+     "$OUT_DIR"/clean_state_machine
 
 echo
 echo "Done. Clean ELF samples are in $OUT_DIR"

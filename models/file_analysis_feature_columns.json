@@ -112,5 +112,6 @@
     "weird_section_names",
     "writable_sections",
     "zero_size_sections"
-  ]
+  ],
+  "selected_model": "random_forest"
 }

@@ -1,10 +1,10 @@
 {
-  "input": "input/fake_combo",
+  "input": "samples/suspicious/fake_combo",
   "sha256": "2ea78b1006757f67c0dc4a56ea393fc3ed8a39e2d5a327f5fadc842e4f172c92",
   "is_elf": true,
   "predicted_label": 1,
   "predicted_class": "suspicious",
-  "suspicious_probability": 0.95,
+  "suspicious_probability": 0.97,
   "heuristic_score": 0.355,
   "evidence": {
     "strings": [
@@ -39,7 +39,7 @@
     ]
   },
   "features": {
-    "path": "input/fake_combo",
+    "path": "samples/suspicious/fake_combo",
     "filename": "fake_combo",
     "sha256": "2ea78b1006757f67c0dc4a56ea393fc3ed8a39e2d5a327f5fadc842e4f172c92",
     "file_size": 20848,
