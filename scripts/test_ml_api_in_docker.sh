@@ -37,6 +37,8 @@ client = app.test_client()
 
 health = client.get("/health")
 assert health.status_code == 200, health.get_data(as_text=True)
+ready = client.get("/ready")
+assert ready.status_code == 200, ready.get_data(as_text=True)
 
 sample_path = Path("samples/suspicious/fake_combo")
 with sample_path.open("rb") as sample:
@@ -52,6 +54,10 @@ assert upload.status_code == 200, upload.get_data(as_text=True)
 upload_json = upload.get_json()
 assert upload_json["predicted_class"] == "suspicious", upload_json
 assert "summary_markdown" in upload_json, upload_json
+assert "schema_version" in upload_json, upload_json
+assert "model_version" in upload_json, upload_json
+assert "analysis_time_ms" in upload_json, upload_json
+assert "top_features" in upload_json, upload_json
 
 encoded = base64.b64encode(sample_path.read_bytes()).decode("ascii")
 json_upload = client.post(
@@ -71,9 +77,30 @@ assert summary.status_code == 200, summary.get_data(as_text=True)
 summary_payload = summary.get_json()
 assert "Reservoir File Analysis Summary" in summary_payload["summary_markdown"], summary_payload
 
+bad_upload = client.post(
+    "/api/v1/analyze-json",
+    json={
+        "filename": "not_elf.txt",
+        "content_base64": base64.b64encode(b"not an elf").decode("ascii"),
+    },
+)
+assert bad_upload.status_code == 415, bad_upload.get_data(as_text=True)
+assert bad_upload.get_json()["error"] == "non_elf_file", bad_upload.get_json()
+
+bad_elf = client.post(
+    "/api/v1/analyze-json",
+    json={
+        "filename": "broken_elf",
+        "content_base64": base64.b64encode(b"\x7fELFbroken").decode("ascii"),
+    },
+)
+assert bad_elf.status_code == 422, bad_elf.get_data(as_text=True)
+assert bad_elf.get_json()["error"] == "feature_extraction_failure", bad_elf.get_json()
+
 Path("output/api_fake_combo_response.json").write_text(json.dumps(upload_json, indent=2), encoding="utf-8")
 print("API smoke test passed")
 print("health:", health.get_json())
+print("ready:", ready.get_json())
 print("upload predicted_class:", upload_json["predicted_class"])
 print("json predicted_class:", json_upload_payload["predicted_class"])
 PY'

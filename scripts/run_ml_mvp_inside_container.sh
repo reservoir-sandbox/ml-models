@@ -27,6 +27,7 @@ python3 -m Reservoir.file_analysis.train_baseline_model \
   --input-csv data/features.csv \
   --model-output models/file_analysis_baseline.joblib \
   --feature-columns-output models/file_analysis_feature_columns.json \
+  --model-metadata-output models/file_analysis_model_metadata.json \
   --metrics-output data/file_analysis_model_metrics.json \
   --importance-output data/file_analysis_feature_importance.csv
 
@@ -47,5 +48,6 @@ ls -lh data/features.csv \
        data/file_analysis_model_metrics.json \
        data/file_analysis_feature_importance.csv \
        models/file_analysis_baseline.joblib \
+       models/file_analysis_model_metadata.json \
        models/file_analysis_feature_columns.json \
        output/fake_combo_prediction.json

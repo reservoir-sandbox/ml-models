@@ -25,4 +25,4 @@ docker run --rm --platform "$DOCKER_PLATFORM" \
   -v "$STAGE_DIR":/work \
   -w /work \
   python:3.10-slim \
-  bash -lc 'python -m pip install --no-cache-dir -r requirements.txt && RESERVOIR_API_HOST=0.0.0.0 RESERVOIR_API_PORT=8000 python -m Reservoir.api.app'
+  bash -lc 'python -m pip install --no-cache-dir -r requirements.txt && RESERVOIR_API_HOST=0.0.0.0 RESERVOIR_API_PORT=8000 gunicorn --bind 0.0.0.0:8000 --workers 1 --threads 2 --timeout 120 Reservoir.api.app:app'
