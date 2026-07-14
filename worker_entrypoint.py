@@ -1,10 +1,14 @@
 #!/usr/bin/env python3
-"""K8s Job entrypoint: pull a sample from S3, run the baseline ML classifier
-on it, upload the report, and report back to the backend callback API.
+"""K8s Job entrypoint: forward the static-analysis report to the external LLM
+summarizer (see LLM_integration.md in gitops-deployment), then relay its
+response back to the backend callback API.
 
-Env var contract mirrors the reverse repo's elf_analyzer.py worker so all
-three analysis workers (reverse/static, auto-yara/sandbox, ml-models/ml) are
-launched identically by charts/job-to-run in gitops-deployment.
+Runs after the static task completes - the backend only launches this task
+once it has a static report to hand over (either inline via STATIC_REPORT or
+as an S3 pointer via STATIC_REPORT_S3_KEY). It never touches the raw sample.
+
+Env var contract otherwise mirrors the reverse/auto-yara workers so all three
+analysis workers are launched identically by charts/job-to-run.
 """
 import asyncio
 import json
@@ -16,10 +20,6 @@ from pathlib import Path
 import aioboto3
 import aiohttp
 
-from Reservoir.file_analysis.predictor import predict_elf
-
-MODEL_PATH = os.getenv("MODEL_PATH", "models/file_analysis_baseline.joblib")
-FEATURE_COLUMNS_PATH = os.getenv("FEATURE_COLUMNS_PATH", "models/file_analysis_feature_columns.json")
 INLINE_RESULT_THRESHOLD_BYTES = 1024 * 1024
 
 
@@ -27,8 +27,25 @@ def get_iso_time() -> str:
     return datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
 
 
-def generate_report(elf_path: str) -> dict:
-    return predict_elf(elf_path, model_path=MODEL_PATH, feature_columns_path=FEATURE_COLUMNS_PATH)
+async def load_static_report(session, endpoint_url, access_key, secret_key, bucket_name, s3_key, task_id, raw_inline):
+    if s3_key:
+        temp_file = Path(f"/tmp/{task_id}_static_report.json")
+        try:
+            async with session.client(
+                "s3", endpoint_url=endpoint_url, aws_access_key_id=access_key, aws_secret_access_key=secret_key, region_name="local-cluster"
+            ) as s3:
+                await s3.download_file(Bucket=bucket_name, Key=s3_key, Filename=str(temp_file))
+            return json.loads(temp_file.read_text(encoding="utf-8"))
+        finally:
+            if temp_file.exists():
+                temp_file.unlink()
+
+    if raw_inline:
+        parsed = json.loads(raw_inline)
+        if isinstance(parsed, dict):
+            return parsed
+
+    raise RuntimeError("No static analysis report available (neither STATIC_REPORT nor STATIC_REPORT_S3_KEY set)")
 
 
 async def send_error_callback(url: str, headers: dict, error_msg: str, started_at: str):
@@ -58,9 +75,14 @@ async def main():
     BACKEND_CALLBACK_URL = os.getenv("BACKEND_CALLBACK_URL")
     WORKER_CALLBACK_SECRET = os.getenv("WORKER_CALLBACK_SECRET")
     TASK_ID = os.getenv("TASK_ID")
-    S3_OBJECT_KEY = os.getenv("S3_OBJECT_KEY")
+    SHA256 = os.getenv("SHA256")
 
-    if not all([ACCESS_KEY, SECRET_KEY, ENDPOINT_URL, BUCKET_NAME, BACKEND_CALLBACK_URL, WORKER_CALLBACK_SECRET, TASK_ID, S3_OBJECT_KEY]):
+    SUMMARIZER_URL = os.getenv("RESERVOIR_SUMMARIZER_URL")
+    SUMMARIZER_TIMEOUT_SECONDS = float(os.getenv("RESERVOIR_SUMMARIZER_TIMEOUT_SECONDS", "300"))
+    STATIC_REPORT_RAW = os.getenv("STATIC_REPORT", "")
+    STATIC_REPORT_S3_KEY = os.getenv("STATIC_REPORT_S3_KEY", "")
+
+    if not all([ACCESS_KEY, SECRET_KEY, ENDPOINT_URL, BUCKET_NAME, BACKEND_CALLBACK_URL, WORKER_CALLBACK_SECRET, TASK_ID, SUMMARIZER_URL]):
         print(json.dumps({"error": "Critical configuration missing from environment variables."}))
         sys.exit(1)
 
@@ -74,19 +96,32 @@ async def main():
         "Content-Type": "application/json",
     }
 
-    temp_file = Path(f"/tmp/{TASK_ID}.elf")
     session = aioboto3.Session()
 
     try:
-        async with session.client(
-            "s3", endpoint_url=ENDPOINT_URL, aws_access_key_id=ACCESS_KEY, aws_secret_access_key=SECRET_KEY, region_name="local-cluster"
-        ) as s3:
-            await s3.download_file(Bucket=BUCKET_NAME, Key=S3_OBJECT_KEY, Filename=str(temp_file))
-
-        report = await asyncio.wait_for(
-            asyncio.to_thread(generate_report, str(temp_file)),
-            timeout=300.0,
+        static_report = await load_static_report(
+            session, ENDPOINT_URL, ACCESS_KEY, SECRET_KEY, BUCKET_NAME, STATIC_REPORT_S3_KEY, TASK_ID, STATIC_REPORT_RAW
         )
+
+        summarize_payload = {
+            "task_id": str(TASK_ID),
+            "status": "success",
+            "location": "inline",
+            "report": static_report,
+            "sha256": SHA256,
+        }
+
+        summarizer_timeout = aiohttp.ClientTimeout(total=SUMMARIZER_TIMEOUT_SECONDS)
+        async with aiohttp.ClientSession(timeout=summarizer_timeout) as http_session:
+            async with http_session.post(
+                f"{SUMMARIZER_URL.rstrip('/')}/api/v1/summarize-static",
+                headers={"Content-Type": "application/json"},
+                json=summarize_payload,
+            ) as response:
+                if response.status != 200:
+                    body = await response.text()
+                    raise RuntimeError(f"Summarizer returned HTTP {response.status}: {body[:500]}")
+                report = await response.json()
 
         json_string = json.dumps(report)
         payload_bytes = json_string.encode("utf-8")
@@ -119,16 +154,13 @@ async def main():
                     print(f"Backend response: {body}")
 
     except asyncio.TimeoutError:
-        error_msg = "Analysis timed out (exceeded 5 minutes). Possible decompression bomb."
+        error_msg = "Summarizer request timed out."
         print(error_msg)
         await send_error_callback(callback_url, http_headers, error_msg, started_at)
     except Exception as err:
         print(f"Execution Error: {err}")
         await send_error_callback(callback_url, http_headers, str(err), started_at)
         sys.exit(1)
-    finally:
-        if temp_file.exists():
-            temp_file.unlink()
 
 
 if __name__ == "__main__":
