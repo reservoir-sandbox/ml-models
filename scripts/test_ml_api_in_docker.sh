@@ -57,7 +57,8 @@ assert "summary_markdown" in upload_json, upload_json
 assert "schema_version" in upload_json, upload_json
 assert "model_version" in upload_json, upload_json
 assert "analysis_time_ms" in upload_json, upload_json
-assert "top_features" in upload_json, upload_json
+assert "top_evidence" in upload_json, upload_json
+assert "model_diagnostics" in upload_json, upload_json
 
 encoded = base64.b64encode(sample_path.read_bytes()).decode("ascii")
 json_upload = client.post(
